@@ -3,8 +3,8 @@ title: "An In Depth Look at Shooting Incidents in NYC"
 author: "Steven Lee"
 date: "2023-10-14"
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -89,13 +89,12 @@ Now that all the data is organized, we can make some visualizations for question
 1. Which victim is race is involved in the most incidents?
 
 ```{r race_bar}
-g <- ggplot(df_shootings, aes(x = VIC_RACE)) +
+ggplot(df_shootings, aes(x = VIC_RACE)) +
   geom_bar() +
   labs(title = "NYC Shooting Victims by Race",
        x = "Victim Race",
        y = "Number of Incidents") +
   theme_minimal()
-g
 ```
 
 We can see that shooting incidents most often involve blacks. 
@@ -103,13 +102,12 @@ We can see that shooting incidents most often involve blacks.
 2. Which borough is involved in the most incidents?
 
 ```{r boro_bar}
-g <- ggplot(df_shootings, aes(x = BORO)) +
+ggplot(df_shootings, aes(x = BORO)) +
   geom_bar() +
   labs(title = "NYC Shooting Victims by Boroughs",
        x = "Borough",
        y = "Number of Incidents") +
   theme_minimal()
-g
 ```
 
 We can see that Brooklyn is the Borough with the most shooting incidents in this time period.
