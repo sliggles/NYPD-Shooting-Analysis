@@ -1,0 +1,187 @@
+---
+title: "An In Depth Look at Shooting Incidents in NYC"
+author: "Steven Lee"
+date: "2023-10-14"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Per the data.gov website, this data is a list of every shooting incident in NYC from 2006 to the previous calendar year. The Office of Management Analysis and Planning manually extract and review this data before posting. Every record is represented by each shooting incident and its related information. 
+
+## Library Used
+```{r library, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(lubridate)
+```
+
+
+## Import Data
+Import NYPD Shooting Incident data by the given URL as a .csv file. 
+
+```{r import_data}
+url <- "https://data.cityofnewyork.us/api/views/833y-fsy8/rows.csv?accessType=DOWNLOAD"
+shootings_data_raw <- read_csv(url,show_col_types = FALSE)
+head(shootings_data_raw)
+
+summary(shootings_data_raw)
+```
+
+
+## Data Clean Up
+I clean the raw data to include standardized occurrence dates along with the New York location where the incident occurred. Select only the necessary columns and other missing data that are not related with this report are removed. The resulting data is stored as 'shootings-data'.
+```{r data_cleanup}
+df_shootings <- shootings_data_raw %>% select(INCIDENT_KEY, OCCUR_DATE, OCCUR_TIME, BORO, PERP_AGE_GROUP, PERP_SEX, PERP_RACE, VIC_AGE_GROUP, VIC_SEX, VIC_RACE, Latitude, Longitude) %>% drop_na() 
+df_shootings$OCCUR_DATE <- mdy(df_shootings$OCCUR_DATE)
+
+summary(df_shootings)
+```
+
+
+## Transforming
+Because much of perpetrator data remain unidentifiable, I want to designate them as "Unknown" and change their data type to "factor" along with other categorical data types. I also want to rename some variables to have a cleaner visualizations.
+
+```{r transform_data}
+df_shootings <- df_shootings %>% mutate(VIC_RACE = case_when(VIC_RACE == "American Indian/Alaskan Native" ~ "Native American", VIC_RACE == "Asian / Pacific Islander" ~ "Asian", TRUE ~ VIC_RACE))
+
+df_shootings = df_shootings %>% 
+  replace_na(list(PERP_AGE_GROUP = "Unknown", PERP_SEX = "Unknown", PERP_RACE = "Unknown"))
+
+df_shootings$PERP_AGE_GROUP = recode(df_shootings$PERP_AGE_GROUP, UNKNOWN = "Unknown")
+df_shootings$PERP_SEX = recode(df_shootings$PERP_SEX, U = "Unknown")
+df_shootings$PERP_RACE = recode(df_shootings$PERP_RACE, UNKNOWN = "Unknown")
+df_shootings$VIC_SEX   = recode(df_shootings$VIC_SEX, U = "Unknown")
+df_shootings$VIC_RACE   = recode(df_shootings$VIC_RACE, UNKNOWN = "Unknown")
+df_shootings$INCIDENT_KEY = as.character(df_shootings$INCIDENT_KEY)
+df_shootings$BORO = as.factor(df_shootings$BORO)
+df_shootings$PERP_AGE_GROUP = as.factor(df_shootings$PERP_AGE_GROUP)
+df_shootings$PERP_SEX = as.factor(df_shootings$PERP_SEX)
+df_shootings$PERP_RACE = as.factor(df_shootings$PERP_RACE)
+df_shootings$VIC_AGE_GROUP = as.factor(df_shootings$VIC_AGE_GROUP)
+df_shootings$VIC_SEX = as.factor(df_shootings$VIC_SEX)
+df_shootings$VIC_RACE = as.factor(df_shootings$VIC_RACE)
+
+
+summary(df_shootings)
+```
+I think it's interesting to look at a cumulative graph of all incidents in all of NY as well as each of the Boroughs over time to see if we can observe any trends in this aspect.
+
+```{r transform_data_total}
+ts_df_shootings <- df_shootings %>% group_by(OCCUR_DATE) %>% summarise(COUNT=n()) %>% ungroup()
+
+summary(ts_df_shootings)
+```
+```{r transform_data_by_boro_total}
+bronx_n <- df_shootings %>% filter(BORO == "BRONX") %>% group_by(OCCUR_DATE) %>% summarise(COUNT=n()) %>% ungroup()
+brooklyn_n <- df_shootings %>% filter(BORO == "BROOKLYN") %>% group_by(OCCUR_DATE) %>% summarise(COUNT=n()) %>% ungroup()
+manhattan_n <- df_shootings %>% filter(BORO == "MANHATTAN") %>% group_by(OCCUR_DATE) %>% summarise(COUNT=n()) %>% ungroup()
+queens_n <- df_shootings %>% filter(BORO == "QUEENS") %>% group_by(OCCUR_DATE) %>% summarise(COUNT=n()) %>% ungroup()
+staten_n <-df_shootings %>% filter(BORO == "STATEN ISLAND") %>% group_by(OCCUR_DATE) %>% summarise(COUNT=n()) %>% ungroup()
+```
+
+## Visualizations
+Now that all the data is organized, we can make some visualizations for questions we want answered.
+
+1. Which victim is race is involved in the most incidents?
+
+```{r race_bar}
+g <- ggplot(df_shootings, aes(x = VIC_RACE)) +
+  geom_bar() +
+  labs(title = "NYC Shooting Victims by Race",
+       x = "Victim Race",
+       y = "Number of Incidents") +
+  theme_minimal()
+g
+```
+
+We can see that shooting incidents most often involve blacks. 
+
+2. Which borough is involved in the most incidents?
+
+```{r boro_bar}
+g <- ggplot(df_shootings, aes(x = BORO)) +
+  geom_bar() +
+  labs(title = "NYC Shooting Victims by Boroughs",
+       x = "Borough",
+       y = "Number of Incidents") +
+  theme_minimal()
+g
+```
+
+We can see that Brooklyn is the Borough with the most shooting incidents in this time period.
+
+3. How has shooting incidents changed over time in NYC?
+
+```{r NYC_tot_line}
+ggplot() +
+  geom_line(data=ts_df_shootings, aes(x=OCCUR_DATE, y=cumsum(COUNT))) + 
+  labs(title = "Cumulative Shooting Victims in New York") +
+  labs(y="Number of Shooting Victims", x="Occurence Date") 
+```
+
+We can see that the slope of the line changes at around 2011-2012 and then again at 2020. Let's see if all the Boroughs reflex this change in the same manner.
+
+4. How has shooting incidents changed over time in each of the Boroughs?
+
+```{r boro_tot_line}
+ggplot() +
+  geom_line(data=bronx_n, aes(x=OCCUR_DATE, y=cumsum(COUNT), color='Bronx')) + 
+  geom_line(data=brooklyn_n, aes(x=OCCUR_DATE, y=cumsum(COUNT), color='Brooklyn')) + 
+  geom_line(data=manhattan_n, aes(x=OCCUR_DATE, y=cumsum(COUNT), color='Manhattan')) + 
+  geom_line(data=queens_n, aes(x=OCCUR_DATE, y=cumsum(COUNT), color='Queens')) + 
+  geom_line(data=staten_n, aes(x=OCCUR_DATE, y=cumsum(COUNT), color='Staten Island')) + 
+  labs(title = "Shooting Incident Count in Each Boroough") + 
+  labs(y="Number of Shootings", x="Years", color="Boroughs") 
+```
+
+We can see that all the Boroughs follow a similar trend with the overall picture except Staten Island.
+
+## Modeling
+Because Staten Island is the unique Borough, let's make a linear regression model in a scatter plot to explore if there is any correlation between the highest shooting incident Borough of Brooklyn and and the lowest in Staten Island. It's easier to see if we transform the incidents into yearly totals for both Boroughs first.
+
+### Transforming
+```{r trans_data_tot_by_years}
+yearly_data <- ts_df_shootings
+yearly_data$OCCUR_DATE <- yearly_data$OCCUR_DATE %>% year()
+yearly_data <- yearly_data %>% group_by(OCCUR_DATE) %>% summarise(COUNT=n())
+
+brooklyn_yearly <- brooklyn_n
+brooklyn_yearly$OCCUR_DATE <- brooklyn_yearly$OCCUR_DATE %>% year()
+brooklyn_yearly <- brooklyn_yearly %>% group_by(OCCUR_DATE) %>% summarise(COUNT=n())
+
+staten_yearly <- staten_n
+staten_yearly$OCCUR_DATE <- staten_yearly$OCCUR_DATE %>% year()
+staten_yearly <- staten_yearly %>% group_by(OCCUR_DATE) %>% summarise(COUNT=n())
+
+summary(brooklyn_yearly)
+summary(staten_yearly)
+```
+
+### Prediction Model
+```{r regression_brooklyn_SI}
+
+merge_data <- merge(brooklyn_yearly[-1,],staten_yearly[-1,], by="OCCUR_DATE")
+
+mod <- lm(COUNT.y ~ COUNT.x, data = merge_data)
+
+summary(mod)
+
+regs <- merge_data %>% mutate(reg = predict(mod))
+
+regs %>% ggplot() + geom_point(aes(x=COUNT.x,y=COUNT.y,color = "Raw Data")) + 
+  geom_line(aes(x=COUNT.x,y=reg, color = "Regression")) + 
+  scale_x_continuous(breaks = pretty(yearly_data$OCCUR_DATE, n = 1)) + 
+  labs(title = "Correlation between Yearly Shootings 
+       in Brooklyn and Staten Island") + 
+  labs(y="Staten Island Yearly Shooting Incidents", 
+       x="Bronx Yearly Shooting Incidents", color="Legend")
+```
+
+From the chart we can see that the correlation between Brooklyn and Staten Island is generally that both sets are increasing over time, though
+
+## Bias
+Bias could stem from inconsistent reporting in certain areas, which may lead to data gaps in some places and an overabundance in others. The data also fail to take into account socioeconomic status and other outside factors like weather or the COVID 19 pandemic. More info on these variables may needed to enhance the conclusions that can be made in this analysis. 
