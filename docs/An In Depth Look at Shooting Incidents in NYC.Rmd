@@ -3,8 +3,8 @@ title: "An In Depth Look at Shooting Incidents in NYC"
 author: "Steven Lee"
 date: "2023-10-14"
 output:
-  html_document: default
   pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -33,7 +33,7 @@ summary(shootings_data_raw)
 
 
 ## Data Clean Up
-I clean the raw data to include standardized occurrence dates along with the New York location where the incident occurred. Select only the necessary columns and other missing data that are not related with this report are removed. The resulting data is stored as 'shootings-data'.
+I clean the raw data to include standardized occurrence dates along with the New York location where the incident occurred. Select only the necessary columns and other missing data that are not related with this report are removed. The resulting data is stored as 'df_shootings'.
 ```{r data_cleanup}
 df_shootings <- shootings_data_raw %>% select(INCIDENT_KEY, OCCUR_DATE, OCCUR_TIME, BORO, PERP_AGE_GROUP, PERP_SEX, PERP_RACE, VIC_AGE_GROUP, VIC_SEX, VIC_RACE, Latitude, Longitude) %>% drop_na() 
 df_shootings$OCCUR_DATE <- mdy(df_shootings$OCCUR_DATE)

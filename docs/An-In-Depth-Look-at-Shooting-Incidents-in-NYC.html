@@ -444,8 +444,7 @@ head(shootings_data_raw)</code></pre>
 <p>I clean the raw data to include standardized occurrence dates along
 with the New York location where the incident occurred. Select only the
 necessary columns and other missing data that are not related with this
-report are removed. The resulting data is stored as
-‘shootings-data’.</p>
+report are removed. The resulting data is stored as ‘df_shootings’.</p>
 <pre class="r"><code>df_shootings &lt;- shootings_data_raw %&gt;% select(INCIDENT_KEY, OCCUR_DATE, OCCUR_TIME, BORO, PERP_AGE_GROUP, PERP_SEX, PERP_RACE, VIC_AGE_GROUP, VIC_SEX, VIC_RACE, Latitude, Longitude) %&gt;% drop_na() 
 df_shootings$OCCUR_DATE &lt;- mdy(df_shootings$OCCUR_DATE)
 
